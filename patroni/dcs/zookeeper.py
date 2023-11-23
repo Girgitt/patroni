@@ -308,6 +308,15 @@ class ZooKeeper(AbstractDCS):
         if self._fetch_cluster or cluster is None:
             try:
                 cluster = self._client.retry(loader, path)
+            except ConnectionClosedError as e:
+                logger.exception('get_cluster: ConnectionClosedError')
+                self.cluster_watcher(None)
+                try:
+                    self._client.restart()  # _delete_leader does the same; this instance cannot be the leader anyway
+                except Exception as e:
+                    logger.exception('get_cluster: kazoo client restart failed')
+                    raise ZooKeeperError(e)
+                raise ZooKeeperError(e)
             except Exception:
                 logger.exception('get_cluster')
                 self.cluster_watcher(None)
